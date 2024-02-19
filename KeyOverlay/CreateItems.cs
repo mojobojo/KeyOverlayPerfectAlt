@@ -10,7 +10,7 @@ namespace KeyOverlay
 {
     public static class CreateItems
     {
-        private static readonly Font _font = new Font(Path.GetFullPath(Path.Combine
+        public static readonly Font _font = new Font(Path.GetFullPath(Path.Combine
         (Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty, "Resources",
             "consolab.ttf")));
         public static RectangleShape CreateBar(RectangleShape square, int outlineThickness, float barSpeed)

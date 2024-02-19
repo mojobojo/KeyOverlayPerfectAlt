@@ -14,6 +14,8 @@ namespace KeyOverlay
         public readonly Mouse.Button MouseButton;
         public int Counter = 0;
         public readonly bool isKey = true;
+        public bool Held = false;
+        public bool Error = false;
 
         public Key(string key)
         {
