@@ -1,35 +1,8 @@
 
 # KeyOverlay
- A simple key overlay for osu! streaming
- 
- If you're interested in per key coloring and custom width for your keys please check out [Friedchiken-42's version](https://github.com/Friedchicken-42/KeyOverlay) better suited for mania.
- 
-To change the keys used please use config.txt
-# [Download Link](https://github.com/Blondazz/KeyOverlay/releases/latest)
-IF YOU ARE HAVING PROBLEMS WITH THE PROGRAM WHEN OSU! IS ON FULLSCREEN, TRY USING GAME CAPTURE INSTEAD OF WINDOW CAPTURE IN OBS!
+ A simple key overlay for 4 key players on lazer. This is customized for a 4 key players needs, no guarantees for capabilities for anyother other than 4 key players.
 
-# MacOS
-
-## Setup
-
-1. Unzip `KeyOverlay-macos-latest.zip` into a folder.
-2. Double click the KeyOverlay file or Using the terminal cd inside the unzipped folder and run `KeyOverlay` in terminal (`./KeyOverlay`).
-3. Allow the terminal `Input Monitoring` permission.
-
-# Linux
-
-## Setup
-
-1. Unzip `KeyOverlay-ubuntu-latest.zip` into a folder.
-2. cd into the unzipped folder
-3. make `KeyOverlay` executable using `chmod`
-4. run `KeyOverlay` in terminal (`KeyOverlay`)
-
-## Note
-
-If you get an error similar to `System.DllNotFoundException: Unable to load shared library 'csfml-system'`, install the packages that you are missing using your distribution's package manager. Any issues created related to this issue will be automatically closed.
-
-# config.txt properties
+# config.json properties
 keyAmount - The amount of keys in the program (see the readme.txt for recommended widths for certain keyAmounts).
 
 key1, key2 ... - Keys the program should use (UPPERCASE), for numbers and symbols [please refer to this table](https://www.sfml-dev.org/documentation/2.5.1/classsf_1_1Keyboard.php#acb4cacd7cc5802dec45724cf3314a142), for mouse buttons add m before the [mouse button options](https://www.sfml-dev.org/documentation/2.5.1/classsf_1_1Mouse.php#a4fb128be433f9aafe66bc0c605daaa90) ex. mLeft mRight. If you want more keys just add more fields.
