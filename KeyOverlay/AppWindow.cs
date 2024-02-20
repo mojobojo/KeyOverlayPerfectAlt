@@ -12,6 +12,7 @@ using System.Text.Json.Serialization;
 using static SFML.Window.Keyboard;
 using System.Security.Cryptography;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace KeyOverlay
 {
@@ -31,35 +32,35 @@ namespace KeyOverlay
         [JsonPropertyName("key4")]
         public string Key4 { get; set; }
 
-        [JsonPropertyName("key5")]
-        public string Key5 { get; set; }
+        //[JsonPropertyName("key5")]
+        //public string Key5 { get; set; }
 
-        [JsonPropertyName("key6")]
-        public string Key6 { get; set; }
+        //[JsonPropertyName("key6")]
+        //public string Key6 { get; set; }
 
-        [JsonPropertyName("key7")]
-        public string Key7 { get; set; }
+        //[JsonPropertyName("key7")]
+        //public string Key7 { get; set; }
 
-        [JsonPropertyName("displayKey1")]
-        public string DisplayKey1 { get; set; }
+        //[JsonPropertyName("displayKey1")]
+        //public string DisplayKey1 { get; set; }
 
-        [JsonPropertyName("displayKey2")]
-        public string DisplayKey2 { get; set; }
+        //[JsonPropertyName("displayKey2")]
+        //public string DisplayKey2 { get; set; }
 
-        [JsonPropertyName("displayKey3")]
-        public string DisplayKey3 { get; set; }
+        //[JsonPropertyName("displayKey3")]
+        //public string DisplayKey3 { get; set; }
 
-        [JsonPropertyName("displayKey4")]
-        public string DisplayKey4 { get; set; }
+        //[JsonPropertyName("displayKey4")]
+        //public string DisplayKey4 { get; set; }
 
-        [JsonPropertyName("displayKey5")]
-        public string DisplayKey5 { get; set; }
+        //[JsonPropertyName("displayKey5")]
+        //public string DisplayKey5 { get; set; }
 
-        [JsonPropertyName("displayKey6")]
-        public string DisplayKey6 { get; set; }
+        //[JsonPropertyName("displayKey6")]
+        //public string DisplayKey6 { get; set; }
 
-        [JsonPropertyName("displayKey7")]
-        public string DisplayKey7 { get; set; }
+        //[JsonPropertyName("displayKey7")]
+        //public string DisplayKey7 { get; set; }
 
         [JsonPropertyName("keyOrder")]
         public string keyOrder { get; set; }
@@ -68,16 +69,16 @@ namespace KeyOverlay
         public bool KeyCounter { get; set; }
 
         [JsonPropertyName("windowHeight")]
-        public int WindowHeight { get; set; }
+        public uint WindowHeight { get; set; }
 
         [JsonPropertyName("windowWidth")]
-        public int WindowWidth { get; set; }
+        public uint WindowWidth { get; set; }
 
         [JsonPropertyName("keySize")]
         public int KeySize { get; set; }
 
         [JsonPropertyName("barSpeed")]
-        public int BarSpeed { get; set; }
+        public float BarSpeed { get; set; }
 
         [JsonPropertyName("margin")]
         public int Margin { get; set; }
@@ -110,13 +111,16 @@ namespace KeyOverlay
         public string BackgroundImage { get; set; }
 
         [JsonPropertyName("maxFPS")]
-        public int MaxFPS { get; set; }
+        public uint MaxFPS { get; set; }
 
         [JsonPropertyName("showErrors")]
         public bool ShowErrors { get; set; }
 
         [JsonPropertyName("showKeyLock")]
         public bool ShowKeyLock { get; set; }
+
+        [JsonPropertyName("keyNameAliases")]
+        public Dictionary<string, string> KeyNameAliases { get; set; }
     }
 
     public class AppWindow
@@ -144,63 +148,69 @@ namespace KeyOverlay
         private readonly int _keyAmount;
         private readonly int[] _keyOrder;
         private readonly bool _showKeyLock;
+        private ConfigFile _config;
+
+        private string ConvertToAlias(string str) {
+            string alias = str;
+
+            if (_config.KeyNameAliases.ContainsKey(str)) {
+                alias = _config.KeyNameAliases[str];
+            }
+
+            return alias;
+        }
 
         public AppWindow(string configFileName)
         {
-            var config = ReadConfig(configFileName);
-            var windowWidth = config["windowWidth"];
-            var windowHeight = config["windowHeight"];
-            _window = new RenderWindow(new VideoMode(uint.Parse(windowWidth!), uint.Parse(windowHeight!)),
+            string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            _config = JsonSerializer.Deserialize<ConfigFile>(File.ReadAllText(Path.Combine(assemblyPath ?? "", "config.json")));
+
+            _window = new RenderWindow(new VideoMode(_config.WindowWidth, _config.WindowHeight),
                 "KeyOverlay", Styles.Default);
 
             //calculate screen ratio relative to original program size for easy resizing
-            _ratioX = float.Parse(windowWidth) / 480f;
-            _ratioY = float.Parse(windowHeight) / 960f;
+            _ratioX = (float)(_config.WindowWidth) / 480f;
+            _ratioY = (float)(_config.WindowHeight) / 960f;
 
-            _barSpeed = float.Parse(config["barSpeed"], CultureInfo.InvariantCulture);
-            _outlineThickness = int.Parse(config["outlineThickness"]);
-            _backgroundColor = CreateItems.CreateColor(config["backgroundColor"]);
-            _keyBackgroundColor = CreateItems.CreateColor(config["keyColor"]);
-            _barColor = CreateItems.CreateColor(config["barColor"]);
-            _maxFPS = uint.Parse(config["maxFPS"]);
+            _barSpeed = _config.BarSpeed;
+            _outlineThickness = _config.OutlineThickness;
+            _backgroundColor = CreateItems.CreateColor(_config.BackgroundColor);
+            _keyBackgroundColor = CreateItems.CreateColor(_config.KeyColor);
+            _barColor = CreateItems.CreateColor(_config.BarColor);
+            _maxFPS = _config.MaxFPS;
 
             //get background image if in config
-            if (config["backgroundImage"] != "")
+            if (_config.BackgroundImage != "")
                 _background = new Sprite(new Texture(
-                    Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Resources",
-                        config["backgroundImage"]))));
+                    Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Resources", _config.BackgroundImage))));
 
-            //create keys which will be used to create the squares and text
-            var keyAmount = int.Parse(config["keyAmount"]);
-            for (var i = 1; i <= keyAmount; i++)
-                try
-                {
-                    var key = new Key(config[$"key" + i]);
-                    if (config.ContainsKey($"displayKey" + i))
-                        if (config[$"displayKey" + i] != "")
-                            key.KeyLetter = config[$"displayKey" + i];
-                    _keyList.Add(key);
-                }
-                catch (InvalidOperationException e)
-                {
-                    //invalid key
-                    Console.WriteLine(e.Message);
-                    using var sw = new StreamWriter("keyErrorMessage.txt");
-                    sw.WriteLine(e.Message);
-                }
+            Key k1 = new Key(_config.Key1);
+            Key k2 = new Key(_config.Key2);
+            Key k3 = new Key(_config.Key3);
+            Key k4 = new Key(_config.Key4);
+
+            k1.KeyLetter = ConvertToAlias(_config.Key1);
+            k2.KeyLetter = ConvertToAlias(_config.Key2);
+            k3.KeyLetter = ConvertToAlias(_config.Key3);
+            k4.KeyLetter = ConvertToAlias(_config.Key4);
+
+            _keyList.Add(k1);
+            _keyList.Add(k2);
+            _keyList.Add(k3);
+            _keyList.Add(k4);
 
             //create squares and add them to _staticDrawables list
-            var outlineColor = CreateItems.CreateColor(config["borderColor"]);
-            var keySize = int.Parse(config["keySize"]);
-            var margin = int.Parse(config["margin"]);
-            _squareList = CreateItems.CreateKeys(keyAmount, _outlineThickness, keySize, _ratioX, _ratioY, margin,
+            var outlineColor = CreateItems.CreateColor(_config.BorderColor);
+            var keySize = _config.KeySize;
+            var margin = _config.Margin;
+            _squareList = CreateItems.CreateKeys(_config.KeyAmount, _outlineThickness, keySize, _ratioX, _ratioY, margin,
                 _window, _keyBackgroundColor, outlineColor);
             foreach (var square in _squareList) _staticDrawables.Add(square);
 
             //create text and add it ti _staticDrawables list
-            _fontColor = CreateItems.CreateColor(config["fontColor"]);
-            _pressFontColor = CreateItems.CreateColor(config["pressFontColor"]);
-            for (var i = 0; i < keyAmount; i++)
+            _fontColor = CreateItems.CreateColor(_config.FontColor);
+            _pressFontColor = CreateItems.CreateColor(_config.PressFontColor);
+            for (var i = 0; i < _config.KeyAmount; i++)
             {
                 var text = CreateItems.CreateText(_keyList.ElementAt(i).KeyLetter, _squareList.ElementAt(i),
                     _fontColor, false);
@@ -208,64 +218,13 @@ namespace KeyOverlay
                 _staticDrawables.Add(text);
             }
 
-            _fading = bool.Parse(config["fading"]);
-            _counter = bool.Parse(config["keyCounter"]);
-            _showErrors = bool.Parse(config["showErrors"]);
-            _keyAmount = int.Parse(config["keyAmount"]);
-            _showKeyLock = bool.Parse(config["showKeyLock"]);
+            _fading = _config.Fading;
+            _counter = _config.KeyCounter;
+            _showErrors = _config.ShowErrors;
+            _keyAmount = _config.KeyAmount;
+            _showKeyLock = _config.ShowKeyLock;
 
-            _keyOrder = config["keyOrder"].Split(',').Select(int.Parse).ToArray();
-        }
-
-        private Dictionary<string, string> ReadConfig(string configFileName)
-        {
-            string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            //var objectDict = new Dictionary<string, string>();
-            //var file = configFileName == null ?
-            //    File.ReadLines(Path.Combine(assemblyPath ?? "", "config.txt")).ToArray() :
-            //    File.ReadLines(Path.Combine(assemblyPath ?? "", configFileName)).ToArray();
-            //foreach (var s in file) objectDict.Add(s.Split("=")[0], s.Split("=")[1]);
-
-            ConfigFile cfg = JsonSerializer.Deserialize<ConfigFile>(File.ReadAllText(Path.Combine(assemblyPath ?? "", "config.json")));
-
-            Dictionary<string, string> cfgDict = new Dictionary<string, string> {
-                {"keyAmount", cfg.KeyAmount.ToString()},
-                {"key1", cfg.Key1},
-                {"key2", cfg.Key2},
-                {"key3", cfg.Key3},
-                {"key4", cfg.Key4},
-                {"key5", cfg.Key5},
-                {"key6", cfg.Key6},
-                {"key7", cfg.Key7},
-                {"displayKey1", cfg.DisplayKey1},
-                {"displayKey2", cfg.DisplayKey2},
-                {"displayKey3", cfg.DisplayKey3},
-                {"displayKey4", cfg.DisplayKey4},
-                {"displayKey5", cfg.DisplayKey5},
-                {"displayKey6", cfg.DisplayKey6},
-                {"displayKey7", cfg.DisplayKey7},
-                {"keyOrder", cfg.keyOrder},
-                {"keyCounter", cfg.KeyCounter.ToString()},
-                {"windowHeight", cfg.WindowHeight.ToString()},
-                {"windowWidth", cfg.WindowWidth.ToString()},
-                {"keySize", cfg.KeySize.ToString()},
-                {"barSpeed", cfg.BarSpeed.ToString()},
-                {"margin", cfg.Margin.ToString()},
-                {"outlineThickness", cfg.OutlineThickness.ToString()},
-                {"fading", cfg.Fading.ToString()},
-                {"backgroundColor", cfg.BackgroundColor.ToString()},
-                {"keyColor", cfg.KeyColor.ToString()},
-                {"borderColor", cfg.BorderColor.ToString()},
-                {"barColor", cfg.BarColor.ToString()},
-                {"fontColor", cfg.FontColor.ToString()},
-                {"pressFontColor", cfg.PressFontColor.ToString()},
-                {"backgroundImage", cfg.BackgroundImage.ToString()},
-                {"maxFPS", cfg.MaxFPS.ToString()},
-                {"showErrors", cfg.ShowErrors.ToString() },
-                {"showKeyLock", cfg.ShowErrors.ToString() }
-            };
-
-            return cfgDict;
+            _keyOrder = _config.keyOrder.Split(',').Select(int.Parse).ToArray();
         }
 
         private void OnClose(object sender, EventArgs e)
@@ -300,14 +259,17 @@ namespace KeyOverlay
                 int keyIndex = 0;
                 foreach (var key in _keyList)
                 {
-                    if (key.isKey && Keyboard.IsKeyPressed(key.KeyboardKey) ||
-                        !key.isKey && Mouse.IsButtonPressed(key.MouseButton))
+                    //if (key.isKey && Keyboard.IsKeyPressed(key.KeyboardKey) ||
+                    //    !key.isKey && Mouse.IsButtonPressed(key.MouseButton))
+
+                    //if (key.isKey && Keyboard.IsKeyPressed(key.KeyboardKey))
+                    if (key.isKey && KeyboardHook.KeyStates[key.VKCode])
                     {
                         if (!key.Held) {
                             key.Held = true;
 
                             if (keyListRot != _keyOrder[keyIndex]) {
-                                Debug.WriteLine(string.Format("error: {0}", key.KeyLetter));
+                                Debug.WriteLine(string.Format("hit error: {0}", key.KeyLetter));
                                 key.Error = true;
                                 keyListRot = _keyOrder[keyIndex];
                             }

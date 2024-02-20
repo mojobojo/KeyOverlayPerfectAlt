@@ -20,6 +20,8 @@ namespace KeyOverlay
                 sw.WriteLine(e);
                 throw;
             }
+
+            KeyboardHook.CreateHook();
             window.Run();
         }
     }
