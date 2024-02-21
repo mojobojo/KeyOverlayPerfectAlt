@@ -36,7 +36,7 @@ Left hand side is the key binding, right hand side is what you would like to dis
 
 # Example Preview
 
-![](https://i.imgur.com/FO695k5.gif)
+![](https://i.imgur.com/rwW2gba.gif)
 
 # Future plans and ideas
 - Live display showing a list of errors.
