@@ -40,6 +40,7 @@ Left hand side is the key binding, right hand side is what you would like to dis
 
 # Future plans and ideas
 - Live display showing a list of errors.
+- Reload key config off of lazer and stable when you change keys.
 - Uhh, I think I had some other ideas but as I am writing this I cant remember so I typed this.
 
 # Additional notes

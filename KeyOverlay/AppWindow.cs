@@ -8,121 +8,19 @@ using SFML.Graphics;
 using SFML.System;
 using SFML.Window;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using static SFML.Window.Keyboard;
 using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using osu.Framework.Input;
+using osu.Framework.Input.Bindings;
+using osu.Game.Database;
+using osu.Game.Input.Bindings;
+using osu.Game.Rulesets;
+using Realms;
 
 namespace KeyOverlay
 {
-    public class ConfigFile {
-        [JsonPropertyName("keyAmount")]
-        public int KeyAmount { get; set; }
-
-        [JsonPropertyName("key1")]
-        public string Key1 { get; set; }
-
-        [JsonPropertyName("key2")]
-        public string Key2 { get; set; }
-
-        [JsonPropertyName("key3")]
-        public string Key3 { get; set; }
-
-        [JsonPropertyName("key4")]
-        public string Key4 { get; set; }
-
-        //[JsonPropertyName("key5")]
-        //public string Key5 { get; set; }
-
-        //[JsonPropertyName("key6")]
-        //public string Key6 { get; set; }
-
-        //[JsonPropertyName("key7")]
-        //public string Key7 { get; set; }
-
-        //[JsonPropertyName("displayKey1")]
-        //public string DisplayKey1 { get; set; }
-
-        //[JsonPropertyName("displayKey2")]
-        //public string DisplayKey2 { get; set; }
-
-        //[JsonPropertyName("displayKey3")]
-        //public string DisplayKey3 { get; set; }
-
-        //[JsonPropertyName("displayKey4")]
-        //public string DisplayKey4 { get; set; }
-
-        //[JsonPropertyName("displayKey5")]
-        //public string DisplayKey5 { get; set; }
-
-        //[JsonPropertyName("displayKey6")]
-        //public string DisplayKey6 { get; set; }
-
-        //[JsonPropertyName("displayKey7")]
-        //public string DisplayKey7 { get; set; }
-
-        [JsonPropertyName("keyOrder")]
-        public string keyOrder { get; set; }
-
-        [JsonPropertyName("keyCounter")]
-        public bool KeyCounter { get; set; }
-
-        [JsonPropertyName("windowHeight")]
-        public uint WindowHeight { get; set; }
-
-        [JsonPropertyName("windowWidth")]
-        public uint WindowWidth { get; set; }
-
-        [JsonPropertyName("keySize")]
-        public int KeySize { get; set; }
-
-        [JsonPropertyName("barSpeed")]
-        public float BarSpeed { get; set; }
-
-        [JsonPropertyName("margin")]
-        public int Margin { get; set; }
-
-        [JsonPropertyName("outlineThickness")]
-        public int OutlineThickness { get; set; }
-
-        [JsonPropertyName("fading")]
-        public bool Fading { get; set; }
-
-        [JsonPropertyName("backgroundColor")]
-        public string BackgroundColor { get; set; }
-
-        [JsonPropertyName("keyColor")]
-        public string KeyColor { get; set; }
-
-        [JsonPropertyName("borderColor")]
-        public string BorderColor { get; set; }
-
-        [JsonPropertyName("barColor")]
-        public string BarColor { get; set; }
-
-        [JsonPropertyName("fontColor")]
-        public string FontColor { get; set; }
-
-        [JsonPropertyName("pressFontColor")]
-        public string PressFontColor { get; set; }
-
-        [JsonPropertyName("backgroundImage")]
-        public string BackgroundImage { get; set; }
-
-        [JsonPropertyName("maxFPS")]
-        public uint MaxFPS { get; set; }
-
-        [JsonPropertyName("showErrors")]
-        public bool ShowErrors { get; set; }
-
-        [JsonPropertyName("showKeyLock")]
-        public bool ShowKeyLock { get; set; }
-
-        [JsonPropertyName("keyNameAliases")]
-        public Dictionary<string, string> KeyNameAliases { get; set; }
-    }
-
     public class AppWindow
     {
         private readonly RenderWindow _window;
@@ -149,6 +47,8 @@ namespace KeyOverlay
         private readonly int[] _keyOrder;
         private readonly bool _showKeyLock;
         private ConfigFile _config;
+        private FileSystemWatcher clientReamWatcher;
+        private Key _reloadKey;
 
         private string ConvertToAlias(string str) {
             string alias = str;
@@ -160,10 +60,67 @@ namespace KeyOverlay
             return alias;
         }
 
+        private void ReloadClientRealm() {
+            Debug.WriteLine("Reloading client realm....");
+
+            RealmConfiguration clientRealm = new RealmConfiguration(Path.Combine(Path.Combine(_config.LazerInstall, "client.realm")));
+            clientRealm.SchemaVersion = 40;
+
+            List<Key> leftKeys = new List<Key>();
+            List<Key> rightKeys = new List<Key>();
+            using (Realm realm = Realm.GetInstance(clientRealm)) {
+                foreach (RealmKeyBinding action in realm.All<RealmKeyBinding>().Where(kb => kb.RulesetName == "osu")) {
+                    ReadableKeyCombinationProvider rkcp = new ReadableKeyCombinationProvider();
+                    string keyString = rkcp.GetReadableString(action.KeyCombination);
+                    if (action.Action.ToString() == "0") {
+                        Key k = new Key(keyString);
+                        k.KeyLetter = ConvertToAlias(keyString);
+                        leftKeys.Add(k);
+                    }
+                    if (action.Action.ToString() == "1") {
+                        Key k = new Key(keyString);
+                        k.KeyLetter = ConvertToAlias(keyString);
+                        rightKeys.Add(k);
+                    }
+                }
+            }
+
+            _keyList.Clear();
+            _keyList.Add(leftKeys[0]);
+            _keyList.Add(rightKeys[0]);
+            _keyList.Add(leftKeys[1]);
+            _keyList.Add(rightKeys[1]);
+
+
+            if (_keyText != null && _staticDrawables != null && _squareList != null) {
+                _keyText.Clear();
+                _staticDrawables.Clear();
+                foreach (var square in _squareList) _staticDrawables.Add(square);
+
+                for (var i = 0; i < _config.KeyAmount; i++) {
+                    var text = CreateItems.CreateText(_keyList.ElementAt(i).KeyLetter, _squareList.ElementAt(i),
+                        _fontColor, false);
+                    _keyText.Add(text);
+                    _staticDrawables.Add(text);
+                }
+            }
+        }
+
         public AppWindow(string configFileName)
         {
             string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             _config = JsonSerializer.Deserialize<ConfigFile>(File.ReadAllText(Path.Combine(assemblyPath ?? "", "config.json")));
+
+            if (_config.UseKeyboardHooks) {
+                KeyboardHook.CreateHook();
+            }
+
+            //clientReamWatcher = new FileSystemWatcher();
+            //clientReamWatcher.Path = _config.LazerInstall;
+            //clientReamWatcher.Filter = "client.realm";
+            //clientReamWatcher.NotifyFilter = NotifyFilters.LastWrite;
+            //clientReamWatcher.Changed += ReloadClientRealm;
+            //clientReamWatcher.EnableRaisingEvents = true;
 
             _window = new RenderWindow(new VideoMode(_config.WindowWidth, _config.WindowHeight),
                 "KeyOverlay", Styles.Default);
@@ -184,20 +141,27 @@ namespace KeyOverlay
                 _background = new Sprite(new Texture(
                     Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Resources", _config.BackgroundImage))));
 
-            Key k1 = new Key(_config.Key1);
-            Key k2 = new Key(_config.Key2);
-            Key k3 = new Key(_config.Key3);
-            Key k4 = new Key(_config.Key4);
+            _reloadKey = new Key(_config.ReloadKey);
+            _reloadKey.KeyLetter = ConvertToAlias(_config.ReloadKey);
 
-            k1.KeyLetter = ConvertToAlias(_config.Key1);
-            k2.KeyLetter = ConvertToAlias(_config.Key2);
-            k3.KeyLetter = ConvertToAlias(_config.Key3);
-            k4.KeyLetter = ConvertToAlias(_config.Key4);
+            if (_config.UseLazerKeyConfig) {
+                ReloadClientRealm();
+            } else {
+                Key k1 = new Key(_config.Key1);
+                Key k2 = new Key(_config.Key2);
+                Key k3 = new Key(_config.Key3);
+                Key k4 = new Key(_config.Key4);
 
-            _keyList.Add(k1);
-            _keyList.Add(k2);
-            _keyList.Add(k3);
-            _keyList.Add(k4);
+                k1.KeyLetter = ConvertToAlias(_config.Key1);
+                k2.KeyLetter = ConvertToAlias(_config.Key2);
+                k3.KeyLetter = ConvertToAlias(_config.Key3);
+                k4.KeyLetter = ConvertToAlias(_config.Key4);
+
+                _keyList.Add(k1);
+                _keyList.Add(k2);
+                _keyList.Add(k3);
+                _keyList.Add(k4);
+            }
 
             //create squares and add them to _staticDrawables list
             var outlineColor = CreateItems.CreateColor(_config.BorderColor);
@@ -232,10 +196,21 @@ namespace KeyOverlay
             _window.Close();
         }
 
+        private bool GetKeyDown(Key k) {
+            if (_config.UseKeyboardHooks) {
+                return KeyboardHook.KeyStates[k.VKCode];
+            }
+
+            return Keyboard.IsKeyPressed(k.KeyboardKey);
+        }
+
         public void Run()
         {
             _window.Closed += OnClose;
-            _window.SetFramerateLimit(_maxFPS);
+
+            if (!_config.UncappedFPS) { 
+                _window.SetFramerateLimit(_maxFPS);
+            }
 
             //Creating a sprite for the fading effect
             var fadingList = Fading.GetBackgroundColorFadingTexture(_backgroundColor, _window.Size.X, _ratioY);
@@ -248,8 +223,14 @@ namespace KeyOverlay
             var fadingSprite = new Sprite(fadingTexture.Texture);
 
             int keyListRot = 0;
+            Stopwatch reloadCounter = new Stopwatch();
+            reloadCounter.Start();
             while (_window.IsOpen)
             {
+                if (reloadCounter.ElapsedMilliseconds >= 1000 && GetKeyDown(_reloadKey) && _config.UseLazerKeyConfig) {
+                    ReloadClientRealm();
+                    reloadCounter.Restart();
+                }
                 _window.Clear(_backgroundColor);
                 _window.DispatchEvents();
 
@@ -263,7 +244,7 @@ namespace KeyOverlay
                     //    !key.isKey && Mouse.IsButtonPressed(key.MouseButton))
 
                     //if (key.isKey && Keyboard.IsKeyPressed(key.KeyboardKey))
-                    if (key.isKey && KeyboardHook.KeyStates[key.VKCode])
+                    if (key.isKey && GetKeyDown(key))
                     {
                         if (!key.Held) {
                             key.Held = true;
@@ -311,7 +292,7 @@ namespace KeyOverlay
                         key.Error = false;
                     }
 
-                    if (keyListRot >= _keyAmount) {
+                    if (keyListRot >= _keyOrder.Length) {
                         keyListRot = 0;
                     }
 

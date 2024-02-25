@@ -1,15 +1,16 @@
 {
   "keyAmount": 4,
-  "key1": "X",
-  "key2": "C",
-  "key3": "V",
+  "reloadKey": "Insert",
+  "key1": "x",
+  "key2": "c",
+  "key3": "v",
   "key4": " ",
   "keyOrder": "0,1,2,3",
   "keyCounter": true,
-  "windowHeight": 720,
-  "windowWidth": 512,
+  "windowHeight": 900,
+  "windowWidth": 600,
   "keySize": 70,
-  "barSpeed": 1000.0,
+  "barSpeed": 500.0,
   "margin": 25,
   "outlineThickness": 5,
   "fading": true,
@@ -20,12 +21,17 @@
   "fontColor": "255,255,255,255",
   "pressFontColor": "255,255,255,255",
   "backgroundImage": "",
-  "maxFPS": 1000,
+  "uncappedFPS": false,
+  "maxFPS": 60,
   "showErrors": true,
   "showKeyLock": true,
   "keyNameAliases": {
-    " " : "Spc",
+    " ": "Spc",
     "Space": "Spc",
     "LShift": "LSh"
-  }
+  },
+  "osuInstall": "C:\\Users\\mojobojo\\AppData\\Local\\osu!",
+  "lazerInstall": "C:\\Users\\mojobojo\\AppData\\Roaming\\osu",
+  "useLazerKeyConfig": false,
+  "useKeyboardHooks": false
 }

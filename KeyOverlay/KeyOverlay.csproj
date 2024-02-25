@@ -2,9 +2,10 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ApplicationIcon />
     <StartupObject />
+    <UseWindowsForms>False</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,7 +25,17 @@
 
   <ItemGroup>
     <PackageReference Include="CSFML" Version="2.5.2" />
+    <PackageReference Include="Realm" Version="11.7.0" />
     <PackageReference Include="SFML.Net" Version="2.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="osu.Framework">
+      <HintPath>..\..\..\..\osulazer\app-2024.221.0\osu.Framework.dll</HintPath>
+    </Reference>
+    <Reference Include="osu.Game">
+      <HintPath>..\..\..\..\osulazer\app-2024.221.0\osu.Game.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
